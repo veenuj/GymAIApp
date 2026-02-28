@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gymNeon: #39FF14;
+  --color-gymDark: #121212;
+}
+
+body {
+  background-color: var(--color-gymDark);
+  color: white;
+}

@@ -1,0 +1,15 @@
+# Ignore Environment Variables (API KEYS ARE HERE!)
+.env
+
+# Ignore Local SQLite Database (Keeps your local gym data private)
+tathastu_erp.db
+
+# Ignore Python Cache & Virtual Environments
+__pycache__/
+*.pyc
+venv/
+env/
+gym-stable/
+
+# Ignore Vector Database
+rag_db/
