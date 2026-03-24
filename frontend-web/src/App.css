@@ -1,7 +1,6 @@
-/* App.css — Global app-level overrides */
-
 #root {
   min-height: 100vh;
+  min-height: 100dvh; /* dynamic viewport height for mobile */
 }
 
 /* ── Prose (DietProtocols output) ── */
@@ -11,10 +10,8 @@
   font-size: 1rem;
   line-height: 1.75;
 }
-
-.prose strong  { color: #c9263a; font-weight: 700; }
-.prose em      { color: #d4a853; font-style: italic; }
-
+.prose strong { color: #c9263a; font-weight: 700; }
+.prose em { color: #d4a853; font-style: italic; }
 .prose h1, .prose h2, .prose h3, .prose h4 {
   color: #ffffff;
   font-family: 'Rajdhani', sans-serif;
@@ -23,13 +20,19 @@
   margin-top: 1.5em;
   margin-bottom: 0.5em;
 }
-
 .prose-invert { color: #f2e9d8; }
 
-/* Print protocol */
+/* Mobile prose adjustments */
+@media (max-width: 767px) {
+  .prose { font-size: 0.9rem; line-height: 1.65; }
+  .prose h2 { font-size: 1.2rem !important; }
+  .prose h3 { font-size: 1rem !important; }
+}
+
+/* Print */
 @media print {
   .prose, .prose-invert { color: #1a0a0c; }
-  .prose strong         { color: #a01428; }
-  .prose em             { color: #8a5e16; }
+  .prose strong { color: #a01428; }
+  .prose em { color: #8a5e16; }
   .prose h1, .prose h2, .prose h3 { color: #0a0404; }
 }
