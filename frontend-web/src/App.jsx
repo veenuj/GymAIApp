@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Dumbbell, Activity, 
   LogOut, TrendingUp, Zap, ShieldCheck, BellRing,
-  ShoppingCart, Wrench, UserPlus, Wallet, Megaphone, Briefcase, Receipt, Home
+  ShoppingCart, Wrench, UserPlus, Wallet, Megaphone, Briefcase, Receipt, Home, Lock, Mail
 } from 'lucide-react';
 
 // 1. IMPORTING REUSABLE UI COMPONENTS
@@ -22,11 +22,24 @@ import StaffOperations from './modules/StaffOperations';
 import ExpenseManager from './modules/ExpenseManager';
 import SystemOverview from './modules/SystemOverview';
 
+// --- ROLE-BASED ACCESS CONFIGURATION ---
+const ROLE_PERMISSIONS = {
+  admin: ['home', 'finance', 'growth', 'crm', 'registry', 'attendance', 'diet', 'supplements', 'analytics', 'maintenance', 'staff', 'expenses'],
+  trainer: ['home', 'registry', 'attendance', 'diet', 'analytics'],
+  frontdesk: ['home', 'crm', 'registry', 'attendance', 'supplements']
+};
+
 function App() {
-  // --- CORE SYSTEM STATE ---
-  const [view, setView] = useState('website'); 
-  const [activeTab, setActiveTab] = useState('home'); // Now defaults to the amazing System Overview
+  // --- CORE SYSTEM & AUTH STATE ---
+  const [view, setView] = useState('website'); // 'website', 'login', 'admin'
+  const [activeTab, setActiveTab] = useState('home');
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); // e.g., { name: 'Anuj', role: 'admin' }
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   
   // --- DATA STATES ---
   const [members, setMembers] = useState([]);
@@ -35,7 +48,7 @@ function App() {
   const [equipment, setEquipment] = useState([]);
   const [leads, setLeads] = useState([]);
   const [finance, setFinance] = useState({ revenue: [], expenses: [] });
-  const [staff, setStaff] = useState([]); // FIXED: Added missing staff state
+  const [staff, setStaff] = useState([]); 
   const [aiFinanceInsight, setAiFinanceInsight] = useState('');
   
   // --- UI & LOGIC STATES ---
@@ -49,17 +62,49 @@ function App() {
     name: '', mobile: '', email: '', weight: '', height: '', address: '', sub_expiry: ''
   });
 
-  // --- 1. GLOBAL DATA FETCHING (Linter Safe) ---
-  const triggerDataRefresh = () => {
-    setRefreshTrigger(prev => prev + 1); 
+  // --- MOCK AUTHENTICATION HANDLER ---
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setLoginError('');
+    
+    const email = loginEmail.toLowerCase();
+    
+    if (email === 'admin@tathastu.com' && loginPassword === 'admin123') {
+        setCurrentUser({ name: 'System Admin', role: 'admin' });
+    } else if (email === 'trainer@tathastu.com' && loginPassword === 'trainer123') {
+        setCurrentUser({ name: 'Master Trainer', role: 'trainer' });
+    } else if (email === 'desk@tathastu.com' && loginPassword === 'desk123') {
+        setCurrentUser({ name: 'Front Desk', role: 'frontdesk' });
+    } else {
+        setLoginError('Invalid credentials or unauthorized access.');
+        return;
+    }
+
+    setIsAuthenticated(true);
+    setView('admin');
+    setActiveTab('home');
   };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setLoginEmail('');
+    setLoginPassword('');
+    setView('website');
+  };
+
+  const canAccess = (moduleName) => {
+      return currentUser && ROLE_PERMISSIONS[currentUser.role].includes(moduleName);
+  };
+
+  // --- 1. GLOBAL DATA FETCHING ---
+  const triggerDataRefresh = () => setRefreshTrigger(prev => prev + 1); 
 
   useEffect(() => {
     let ignore = false;
     async function loadGlobalData() {
-      if (view === 'admin') {
+      if (view === 'admin' && isAuthenticated) {
         try {
-          // FIXED: Added 'staff' to the endpoints array
           const endpoints = ['members', 'inventory', 'equipment', 'leads', 'finance', 'finance-analysis', 'staff'];
           const results = await Promise.all(
             endpoints.map(ep => fetch(`http://localhost:8005/api/${ep}`).then(r => r.json()))
@@ -72,7 +117,7 @@ function App() {
             setLeads(results[3].leads);
             setFinance(results[4]);
             setAiFinanceInsight(results[5].analysis);
-            setStaff(results[6].staff || []); // FIXED: Syncing staff data
+            setStaff(results[6].staff || []); 
           }
         } catch (err) {
           if (!ignore) console.error("Global Data Sync Error:", err);
@@ -81,9 +126,9 @@ function App() {
     }
     loadGlobalData();
     return () => { ignore = true; }; 
-  }, [view, refreshTrigger]); 
+  }, [view, refreshTrigger, isAuthenticated]); 
 
-  // --- 2. DYNAMIC ANALYTICS FETCHING (Linter Safe) ---
+  // --- 2. DYNAMIC ANALYTICS FETCHING ---
   useEffect(() => {
     let ignore = false;
     async function fetchMemberAnalytics() {
@@ -101,8 +146,7 @@ function App() {
     return () => { ignore = true; };
   }, [selectedMember, activeTab, view]);
 
-  // --- 3. LOGIC HANDLERS ---
-
+  // --- 3. LOGIC HANDLERS (Restored to fix ESLint errors) ---
   const handleAddMember = async (finalMemberData) => {
     try {
         const res = await fetch('http://localhost:8005/api/add-member', {
@@ -182,43 +226,114 @@ function App() {
     setIsGenerating(false);
   };
 
-  // --- PUBLIC WEBSITE RENDER ---
+  // --- RENDER 1: PUBLIC WEBSITE ---
   if (view === 'website') {
     return (
       <div className="min-h-screen bg-[#050505] text-white font-sans flex flex-col items-center justify-center relative overflow-hidden text-white">
         <h1 className="text-8xl font-black italic tracking-tighter mb-8 text-white">TATHASTU<span className="text-lime-400">FIT</span></h1>
-        <button onClick={() => setView('admin')} className="px-10 py-4 bg-zinc-900 border border-white/10 rounded-full font-bold hover:border-lime-400 transition-all uppercase tracking-widest text-xs z-10 text-white">Enter ERP Dashboard</button>
+        <button onClick={() => setView('login')} className="px-10 py-4 bg-lime-400 text-black rounded-full font-black hover:scale-105 transition-all uppercase tracking-widest text-xs z-10 shadow-[0_0_30px_rgba(163,230,53,0.3)]">
+            ERP Secure Portal
+        </button>
       </div>
     );
   }
 
-  // --- ADMIN ERP RENDER ---
+  // --- RENDER 2: LOGIN SCREEN ---
+  if (view === 'login') {
+      return (
+        <div className="min-h-screen bg-[#050505] text-white font-sans flex items-center justify-center relative overflow-hidden">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lime-400/10 rounded-full blur-[120px] pointer-events-none"></div>
+            
+            <div className="w-full max-w-md bg-zinc-950/80 border border-white/5 p-10 rounded-[3rem] backdrop-blur-xl shadow-2xl relative z-10">
+                <div className="text-center mb-10">
+                    <ShieldCheck size={48} className="mx-auto text-lime-400 mb-4" />
+                    <h2 className="text-3xl font-black uppercase tracking-tighter">Auth Gateway</h2>
+                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mt-2">Restricted Enterprise Access</p>
+                </div>
+
+                <form onSubmit={handleLogin} className="space-y-6">
+                    {loginError && (
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-xs font-bold text-center">
+                            {loginError}
+                        </div>
+                    )}
+                    <div>
+                        <div className="relative">
+                            <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                            <input 
+                                type="email" placeholder="Corporate Email" required
+                                value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+                                className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-lime-400 text-sm font-medium transition-colors"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <div className="relative">
+                            <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+                            <input 
+                                type="password" placeholder="Passkey" required
+                                value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
+                                className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-lime-400 text-sm font-medium transition-colors"
+                            />
+                        </div>
+                    </div>
+                    <button type="submit" className="w-full bg-lime-400 text-black font-black py-4 rounded-2xl uppercase tracking-widest text-xs hover:bg-white transition-all shadow-lg">
+                        Authenticate
+                    </button>
+                </form>
+
+                <div className="mt-8 pt-8 border-t border-white/5 text-center">
+                    <p className="text-zinc-600 text-[9px] uppercase tracking-widest font-black mb-3">Demo Credentials</p>
+                    <div className="flex flex-col gap-1 text-[10px] font-mono text-zinc-500">
+                        <span><span className="text-lime-400">Admin:</span> admin@tathastu.com / admin123</span>
+                        <span><span className="text-lime-400">Trainer:</span> trainer@tathastu.com / trainer123</span>
+                        <span><span className="text-lime-400">Desk:</span> desk@tathastu.com / desk123</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+      );
+  }
+
+  // --- RENDER 3: ADMIN ERP ---
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex font-sans selection:bg-lime-400 selection:text-black">
       
-      <aside className="w-72 bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col print:hidden text-white">
-        <div className="p-8">
+      <aside className="w-72 bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col print:hidden text-white relative z-20">
+        <div className="p-8 pb-4">
           <div className="text-2xl font-black italic tracking-tighter flex items-center text-white"><Zap className="text-lime-400 mr-2 fill-lime-400" size={24} /> TATHASTU<span className="text-lime-400 font-normal">ERP</span></div>
         </div>
+
+        {/* Current User Badge */}
+        <div className="px-8 pb-8">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-lime-400 text-black flex items-center justify-center font-black">
+                    {currentUser?.name.charAt(0)}
+                </div>
+                <div>
+                    <p className="font-bold text-sm leading-tight">{currentUser?.name}</p>
+                    <p className="text-[9px] text-zinc-400 uppercase tracking-widest font-black">{currentUser?.role}</p>
+                </div>
+            </div>
+        </div>
         
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-          {/* FIXED: Added Home Tab to Navigation */}
-          <SidebarLink active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home size={20}/>} label="System Overview" />
-          <SidebarLink active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} icon={<Wallet size={20}/>} label="Finance Engine" />
-          <SidebarLink active={activeTab === 'growth'} onClick={() => setActiveTab('growth')} icon={<Megaphone size={20}/>} label="AI Ad Campaigns" />
-          <SidebarLink active={activeTab === 'crm'} onClick={() => setActiveTab('crm')} icon={<UserPlus size={20}/>} label="Leads & Onboarding" />
-          <SidebarLink active={activeTab === 'registry'} onClick={() => setActiveTab('registry')} icon={<Users size={20}/>} label="Member Registry" />
-          <SidebarLink active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<BellRing size={20}/>} label="Retention Bot" />
-          <SidebarLink active={activeTab === 'diet'} onClick={() => setActiveTab('diet')} icon={<ShieldCheck size={20}/>} label="Elite Protocols" />
-          <SidebarLink active={activeTab === 'supplements'} onClick={() => setActiveTab('supplements')} icon={<ShoppingCart size={20}/>} label="Stock Engine" />
-          <SidebarLink active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={<TrendingUp size={20}/>} label="Growth Vision" />
-          <SidebarLink active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} icon={<Wrench size={20}/>} label="Machine Health" />
-          <SidebarLink active={activeTab === 'staff'} onClick={() => setActiveTab('staff')} icon={<Briefcase size={20}/>} label="Team Operations" />
-          <SidebarLink active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} icon={<Receipt size={20}/>} label="OpEx Ledger" />
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+          {canAccess('home') && <SidebarLink active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home size={20}/>} label="System Overview" />}
+          {canAccess('finance') && <SidebarLink active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} icon={<Wallet size={20}/>} label="Finance Engine" />}
+          {canAccess('growth') && <SidebarLink active={activeTab === 'growth'} onClick={() => setActiveTab('growth')} icon={<Megaphone size={20}/>} label="AI Ad Campaigns" />}
+          {canAccess('crm') && <SidebarLink active={activeTab === 'crm'} onClick={() => setActiveTab('crm')} icon={<UserPlus size={20}/>} label="Leads & Onboarding" />}
+          {canAccess('registry') && <SidebarLink active={activeTab === 'registry'} onClick={() => setActiveTab('registry')} icon={<Users size={20}/>} label="Member Registry" />}
+          {canAccess('attendance') && <SidebarLink active={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} icon={<BellRing size={20}/>} label="Retention Bot" />}
+          {canAccess('diet') && <SidebarLink active={activeTab === 'diet'} onClick={() => setActiveTab('diet')} icon={<ShieldCheck size={20}/>} label="Elite Protocols" />}
+          {canAccess('supplements') && <SidebarLink active={activeTab === 'supplements'} onClick={() => setActiveTab('supplements')} icon={<ShoppingCart size={20}/>} label="Stock Engine" />}
+          {canAccess('analytics') && <SidebarLink active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} icon={<TrendingUp size={20}/>} label="Growth Vision" />}
+          {canAccess('maintenance') && <SidebarLink active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} icon={<Wrench size={20}/>} label="Machine Health" />}
+          {canAccess('staff') && <SidebarLink active={activeTab === 'staff'} onClick={() => setActiveTab('staff')} icon={<Briefcase size={20}/>} label="Team Operations" />}
+          {canAccess('expenses') && <SidebarLink active={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} icon={<Receipt size={20}/>} label="OpEx Ledger" />}
         </nav>
 
-        <div className="p-6 border-t border-white/5 text-white">
-          <button onClick={() => setView('website')} className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 rounded-2xl flex items-center justify-center text-sm font-bold transition-all text-white"><LogOut size={16} className="mr-2 text-zinc-500" /> Sign Out</button>
+        <div className="p-6 border-t border-white/5">
+          <button onClick={handleLogout} className="w-full p-4 bg-zinc-900 hover:bg-zinc-800 rounded-2xl flex items-center justify-center text-sm font-bold transition-all text-white"><LogOut size={16} className="mr-2 text-zinc-500" /> End Session</button>
         </div>
       </aside>
 
@@ -228,30 +343,19 @@ function App() {
             <p className="text-zinc-500 font-medium mt-1 uppercase text-[10px] tracking-[0.3em]">System Status <span className="text-lime-400 ml-2">● Online</span></p>
         </header>
         
-        {/* --- DYNAMIC MODULE RENDERING --- */}
-        {activeTab === 'home' && (
-              <SystemOverview 
-                  members={members} 
-                  finance={finance} 
-                  equipment={equipment} 
-                  inventory={inventory} 
-                  leads={leads}
-                  staff={staff} 
-                  aiInsight={aiFinanceInsight} // FIXED: Passed the correct state
-              />
-          )}
-          
-        {activeTab === 'finance' && <FinanceTracker finance={finance} aiInsight={aiFinanceInsight} />}
-        {activeTab === 'growth' && <LeadGenerator onCampaignSuccess={triggerDataRefresh} />}
-        {activeTab === 'crm' && <LeadCRM leads={leads} members={members} formData={formData} setFormData={setFormData} onAddMember={handleAddMember} onRefreshLeads={triggerDataRefresh} />}
-        {activeTab === 'registry' && <MemberRegistry members={members} onUpdateMember={handleUpdateMember} onDeleteMember={handleDeleteMember} />}
-        {activeTab === 'attendance' && <AttendanceBot members={members} onNudge={handleAutoMessage} isMessaging={isMessaging} onMarkAttendance={handleMarkAttendance} onRefresh={triggerDataRefresh} />}
-        {activeTab === 'diet' && <DietProtocols members={members} dietName={dietName} setDietName={setDietName} dietPrompt={dietPrompt} setDietPrompt={setDietPrompt} onGenerate={handleGenerateDiet} isGenerating={isGenerating} dietOutput={dietOutput} />}
-        {activeTab === 'analytics' && <GrowthVision members={members} selectedMember={selectedMember} onSelectMember={setSelectedMember} analyticsData={analyticsData} />}
-        {activeTab === 'supplements' && <StockEngine inventory={inventory} dietOutput={dietOutput} dietName={dietName} onRefresh={triggerDataRefresh} />}
-        {activeTab === 'maintenance' && <MachineHealth equipment={equipment} onRefresh={triggerDataRefresh} />}
-        {activeTab === 'staff' && <StaffOperations onRefresh={triggerDataRefresh} />}
-        {activeTab === 'expenses' && <ExpenseManager onRefresh={triggerDataRefresh} />}
+        {/* --- SECURE DYNAMIC MODULE RENDERING --- */}
+        {activeTab === 'home' && canAccess('home') && <SystemOverview members={members} finance={finance} equipment={equipment} inventory={inventory} leads={leads} staff={staff} aiInsight={aiFinanceInsight} />}
+        {activeTab === 'finance' && canAccess('finance') && <FinanceTracker finance={finance} aiInsight={aiFinanceInsight} />}
+        {activeTab === 'growth' && canAccess('growth') && <LeadGenerator onCampaignSuccess={triggerDataRefresh} />}
+        {activeTab === 'crm' && canAccess('crm') && <LeadCRM leads={leads} members={members} formData={formData} setFormData={setFormData} onAddMember={handleAddMember} onRefreshLeads={triggerDataRefresh} />}
+        {activeTab === 'registry' && canAccess('registry') && <MemberRegistry members={members} onUpdateMember={handleUpdateMember} onDeleteMember={handleDeleteMember} />}
+        {activeTab === 'attendance' && canAccess('attendance') && <AttendanceBot members={members} onNudge={handleAutoMessage} isMessaging={isMessaging} onMarkAttendance={handleMarkAttendance} onRefresh={triggerDataRefresh} />}
+        {activeTab === 'diet' && canAccess('diet') && <DietProtocols members={members} dietName={dietName} setDietName={setDietName} dietPrompt={dietPrompt} setDietPrompt={setDietPrompt} onGenerate={handleGenerateDiet} isGenerating={isGenerating} dietOutput={dietOutput} />}
+        {activeTab === 'analytics' && canAccess('analytics') && <GrowthVision members={members} selectedMember={selectedMember} onSelectMember={setSelectedMember} analyticsData={analyticsData} />}
+        {activeTab === 'supplements' && canAccess('supplements') && <StockEngine inventory={inventory} dietOutput={dietOutput} dietName={dietName} onRefresh={triggerDataRefresh} />}
+        {activeTab === 'maintenance' && canAccess('maintenance') && <MachineHealth equipment={equipment} onRefresh={triggerDataRefresh} />}
+        {activeTab === 'staff' && canAccess('staff') && <StaffOperations onRefresh={triggerDataRefresh} />}
+        {activeTab === 'expenses' && canAccess('expenses') && <ExpenseManager onRefresh={triggerDataRefresh} />}
       </main>
     </div>
   );
