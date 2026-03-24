@@ -11,7 +11,8 @@ export default function MachineHealth({ equipment, onRefresh }) {
     if (!formData.name || !formData.limit) return alert("Fill all fields.");
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8005/api/equipment', {
+      // ✅ FIXED: Now uses the dynamic environment variable
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equipment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: formData.name, limit: parseInt(formData.limit) })
@@ -26,15 +27,16 @@ export default function MachineHealth({ equipment, onRefresh }) {
 
   const handleService = async (id) => {
     try {
-      await fetch(`http://localhost:8005/api/equipment/${id}/service`, { method: 'PUT' });
+      // ✅ FIXED: Now uses the dynamic environment variable
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equipment/${id}/service`, { method: 'PUT' });
       if (onRefresh) onRefresh();
     } catch (err) { console.error("Error servicing equipment:", err); }
   };
 
   const handleAddUsage = async (id) => {
     try {
-      // Simulating +50 hours of usage for demonstration
-      await fetch(`http://localhost:8005/api/equipment/${id}/use?hours=50`, { method: 'PUT' });
+      // ✅ FIXED: Now uses the dynamic environment variable
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/equipment/${id}/use?hours=50`, { method: 'PUT' });
       if (onRefresh) onRefresh();
     } catch (err) { console.error("Error adding usage:", err); }
   };
@@ -109,8 +111,6 @@ export default function MachineHealth({ equipment, onRefresh }) {
           </div>
 
       </div>
-
-      [Image of a modern dark-themed industrial equipment health monitoring dashboard showing real-time usage bars]
 
       {/* ASSET GRID */}
       <h3 className="text-xl font-black uppercase tracking-tighter text-white pt-4">Deployed Hardware Array</h3>

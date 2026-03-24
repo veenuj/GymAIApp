@@ -10,7 +10,8 @@ export default function StaffOperations({ onRefresh }) {
   // Wrap the fetch function in useCallback so it's stable between renders
   const fetchStaff = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8005/api/staff');
+      // ✅ FIXED: Replaced localhost with dynamic Netlify environment variable
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff`);
       const data = await res.json();
       setStaff(data.staff);
     } catch (err) { 
@@ -30,7 +31,8 @@ export default function StaffOperations({ onRefresh }) {
     if (!formData.name || !formData.base_salary) return alert("Fill Name and Base Salary.");
     setIsSubmitting(true);
     try {
-      await fetch('http://localhost:8005/api/staff', {
+      // ✅ FIXED: Replaced localhost with dynamic Netlify environment variable
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -48,7 +50,8 @@ export default function StaffOperations({ onRefresh }) {
   const handleExecutePayroll = async () => {
     if(!window.confirm("Execute monthly payroll? This will deduct the total amount from the Finance Engine and reset commissions.")) return;
     try {
-        const res = await fetch('http://localhost:8005/api/staff/payroll', { method: 'POST' });
+        // ✅ FIXED: Replaced localhost with dynamic Netlify environment variable
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/staff/payroll`, { method: 'POST' });
         const data = await res.json();
         alert(data.message);
         await fetchStaff(); // Re-fetch to see zeroed-out commissions

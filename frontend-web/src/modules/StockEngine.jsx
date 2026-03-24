@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Dumbbell, Zap, PackagePlus, Plus, Minus, Loader2 } from 'lucide-react';
-import { InputField } from '../components/UI'; // Reusing your UI components
 
 export default function StockEngine({ inventory, dietOutput, dietName, onRefresh }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,7 +13,8 @@ export default function StockEngine({ inventory, dietOutput, dietName, onRefresh
     if (!formData.name || !formData.price || !formData.stock) return alert("Fill all fields.");
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8005/api/inventory', {
+      // ✅ FIXED: Now uses the dynamic environment variable
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -35,7 +35,8 @@ export default function StockEngine({ inventory, dietOutput, dietName, onRefresh
   // --- UPDATE STOCK QUANTITY (+ / -) ---
   const handleUpdateStock = async (id, action) => {
     try {
-      await fetch(`http://localhost:8005/api/inventory/${id}?action=${action}`, { method: 'PUT' });
+      // ✅ FIXED: Now uses the dynamic environment variable
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/inventory/${id}?action=${action}`, { method: 'PUT' });
       if (onRefresh) onRefresh();
     } catch (err) { console.error("Stock update error:", err); }
   };
@@ -99,8 +100,6 @@ export default function StockEngine({ inventory, dietOutput, dietName, onRefresh
             </div>
         </div>
       </div>
-
-      [Image of a warehouse inventory management dashboard with product cards and low stock warnings]
 
       {/* Inventory Grid */}
       <h3 className="text-xl font-black uppercase tracking-tighter text-white pt-4">Current Warehouse Stock</h3>

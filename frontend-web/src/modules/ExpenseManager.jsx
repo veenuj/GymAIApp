@@ -10,7 +10,8 @@ export default function ExpenseManager({ onRefresh }) {
   // 1. Wrap the fetch function in useCallback to stabilize it
   const fetchExpenses = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8005/api/finance');
+      // ✅ FIXED: Now uses the dynamic environment variable
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/finance`);
       const data = await res.json();
       // Reverse to show newest first
       setExpenses(data.expenses.reverse());
@@ -37,7 +38,8 @@ export default function ExpenseManager({ onRefresh }) {
         ? `${formData.category} - ${formData.description}` 
         : formData.category;
 
-      await fetch('http://localhost:8005/api/expense', {
+      // ✅ FIXED: Now uses the dynamic environment variable
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/expense`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -46,7 +48,7 @@ export default function ExpenseManager({ onRefresh }) {
         })
       });
       
-      setFormData({ category: 'Electricity', amount: '', description: '' }); // Fixed to keep default category
+      setFormData({ category: 'Electricity', amount: '', description: '' }); 
       await fetchExpenses();
       if (onRefresh) onRefresh(); // Refresh the main Finance Dashboard
     } catch (err) { console.error(err); }
@@ -117,8 +119,6 @@ export default function ExpenseManager({ onRefresh }) {
                  </button>
              </form>
         </div>
-
-        
 
         {/* RIGHT: EXPENSE LEDGER & KPI */}
         <div className="lg:col-span-7 flex flex-col gap-6">

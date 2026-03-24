@@ -20,7 +20,8 @@ export default function AttendanceBot({ members, onNudge, isMessaging, onMarkAtt
   const handleRenew = async (id) => {
     if(!window.confirm("Charge member and extend access by 30 days?")) return;
     try {
-      const res = await fetch(`http://localhost:8005/api/members/${id}/renew`, { method: 'POST' });
+      // ✅ FIXED: Now uses the dynamic environment variable
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/members/${id}/renew`, { method: 'POST' });
       const data = await res.json();
       alert(data.message);
       if (onRefresh) onRefresh(); // Instantly update the UI and Finance tracking
