@@ -3,7 +3,7 @@ import { Zap, Instagram, MessageSquare, Target, Sparkles, Send, Loader2 } from '
 
 export default function LeadGenerator({ onCampaignSuccess }) {
   // --- 1. STATE MANAGEMENT ---
-  const [area, setArea] = useState('Kankerkhera, Meerut'); // Default updated
+  const [area, setArea] = useState('Kankerkhera, Meerut'); 
   const [goal, setGoal] = useState('Weight Loss'); 
   const [platform, setPlatform] = useState('Instagram');
   const [adCopy, setAdCopy] = useState('');
@@ -19,7 +19,8 @@ export default function LeadGenerator({ onCampaignSuccess }) {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch('http://localhost:8005/api/generate-ad', {
+      // ✅ FIXED: Now uses the dynamic environment variable with backticks
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/generate-ad`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ area, goal, platform })
@@ -36,7 +37,8 @@ export default function LeadGenerator({ onCampaignSuccess }) {
   const handleLaunch = async () => {
     setIsLaunching(true);
     try {
-      const res = await fetch(`http://localhost:8005/api/launch-campaign?area=${area}`, { method: 'POST' });
+      // ✅ FIXED: Now uses the dynamic environment variable with backticks
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/launch-campaign?area=${area}`, { method: 'POST' });
       const data = await res.json();
       alert(data.message);
       if (onCampaignSuccess) onCampaignSuccess(); // Refresh global leads
@@ -55,7 +57,7 @@ export default function LeadGenerator({ onCampaignSuccess }) {
             </h3>
             
             <div className="space-y-6">
-                {/* UPATED: Hyper-local Location Selector */}
+                {/* Hyper-local Location Selector */}
                 <div>
                     <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-3 block text-white">Target Location</label>
                     <select value={area} onChange={(e) => setArea(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-lime-400 appearance-none cursor-pointer">
