@@ -29,18 +29,22 @@ const ROLE_PERMISSIONS = {
   frontdesk: ['home', 'crm', 'registry', 'attendance', 'supplements']
 };
 
+// --- DYNAMIC API URL SETUP ---
+// This uses your Render backend when live on Netlify, but defaults to your Mac when coding locally!
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8005';
+
 function App() {
   // --- CORE SYSTEM & AUTH STATE ---
   const [view, setView] = useState('website'); // 'website', 'login', 'admin'
   const [activeTab, setActiveTab] = useState('home');
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
-  
+
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null); // e.g., { name: 'Anuj', role: 'admin' }
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  
+
   // --- DATA STATES ---
   const [members, setMembers] = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -50,7 +54,7 @@ function App() {
   const [finance, setFinance] = useState({ revenue: [], expenses: [] });
   const [staff, setStaff] = useState([]); 
   const [aiFinanceInsight, setAiFinanceInsight] = useState('');
-  
+
   // --- UI & LOGIC STATES ---
   const [selectedMember, setSelectedMember] = useState('Rahul Sharma');
   const [isMessaging, setIsMessaging] = useState(false);
@@ -66,9 +70,9 @@ function App() {
   const handleLogin = (e) => {
     e.preventDefault();
     setLoginError('');
-    
+
     const email = loginEmail.toLowerCase();
-    
+
     if (email === 'admin@tathastu.com' && loginPassword === 'admin123') {
         setCurrentUser({ name: 'System Admin', role: 'admin' });
     } else if (email === 'trainer@tathastu.com' && loginPassword === 'trainer123') {
@@ -107,7 +111,7 @@ function App() {
         try {
           const endpoints = ['members', 'inventory', 'equipment', 'leads', 'finance', 'finance-analysis', 'staff'];
           const results = await Promise.all(
-            endpoints.map(ep => fetch(`http://localhost:8005/api/${ep}`).then(r => r.json()))
+            endpoints.map(ep => fetch(`${API_BASE}/api/${ep}`).then(r => r.json()))
           );
 
           if (!ignore) {
@@ -134,7 +138,7 @@ function App() {
     async function fetchMemberAnalytics() {
       if (view === 'admin' && activeTab === 'analytics') {
         try {
-          const aRes = await fetch(`http://localhost:8005/api/analytics/${selectedMember}`);
+          const aRes = await fetch(`${API_BASE}/api/analytics/${selectedMember}`);
           const aData = await aRes.json();
           if (!ignore) setAnalyticsData(aData.progress);
         } catch (err) {
@@ -146,10 +150,10 @@ function App() {
     return () => { ignore = true; };
   }, [selectedMember, activeTab, view]);
 
-  // --- 3. LOGIC HANDLERS (Restored to fix ESLint errors) ---
+  // --- 3. LOGIC HANDLERS ---
   const handleAddMember = async (finalMemberData) => {
     try {
-        const res = await fetch('http://localhost:8005/api/add-member', {
+        const res = await fetch(`${API_BASE}/api/add-member`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(finalMemberData) 
@@ -172,7 +176,7 @@ function App() {
   const handleDeleteMember = async (id) => {
     if(!window.confirm("Permanent deletion? This will remove all biometric and financial logs for this user.")) return;
     try {
-      const res = await fetch(`http://localhost:8005/api/members/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/members/${id}`, { method: 'DELETE' });
       if(res.ok) {
         setMembers(members.filter(m => m.id !== id));
         alert("Member scrubbed from registry.");
@@ -183,7 +187,7 @@ function App() {
   const handleAutoMessage = async () => {
     setIsMessaging(true);
     try {
-      await fetch('http://localhost:8005/api/trigger-retention', { method: 'POST' });
+      await fetch(`${API_BASE}/api/trigger-retention`, { method: 'POST' });
       triggerDataRefresh();
     } catch (err) { console.error("Retention Bot failed:", err); }
     setIsMessaging(false);
@@ -191,12 +195,12 @@ function App() {
 
   const handleMarkAttendance = async (id, currentWeight) => {
     try {
-        const res = await fetch(`http://localhost:8005/api/mark-attendance/${id}`, { 
+        const res = await fetch(`${API_BASE}/api/mark-attendance/${id}`, { 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ weight: currentWeight }) 
         });
-        
+
         if (res.ok) {
             setMembers(members.map(m => m.id === id ? { 
               ...m, 
@@ -215,7 +219,7 @@ function App() {
     if (!dietName || !dietPrompt) return alert("Provide Member details.");
     setIsGenerating(true);
     try {
-      const response = await fetch('http://localhost:8005/api/generate-diet', {
+      const response = await fetch(`${API_BASE}/api/generate-diet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ member_name: dietName, requirements: dietPrompt })
@@ -243,7 +247,7 @@ function App() {
       return (
         <div className="min-h-screen bg-[#050505] text-white font-sans flex items-center justify-center relative overflow-hidden">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lime-400/10 rounded-full blur-[120px] pointer-events-none"></div>
-            
+
             <div className="w-full max-w-md bg-zinc-950/80 border border-white/5 p-10 rounded-[3rem] backdrop-blur-xl shadow-2xl relative z-10">
                 <div className="text-center mb-10">
                     <ShieldCheck size={48} className="mx-auto text-lime-400 mb-4" />
@@ -298,7 +302,7 @@ function App() {
   // --- RENDER 3: ADMIN ERP ---
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex font-sans selection:bg-lime-400 selection:text-black">
-      
+
       <aside className="w-72 bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col print:hidden text-white relative z-20">
         <div className="p-8 pb-4">
           <div className="text-2xl font-black italic tracking-tighter flex items-center text-white"><Zap className="text-lime-400 mr-2 fill-lime-400" size={24} /> TATHASTU<span className="text-lime-400 font-normal">ERP</span></div>
@@ -316,7 +320,7 @@ function App() {
                 </div>
             </div>
         </div>
-        
+
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
           {canAccess('home') && <SidebarLink active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home size={20}/>} label="System Overview" />}
           {canAccess('finance') && <SidebarLink active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} icon={<Wallet size={20}/>} label="Finance Engine" />}
@@ -342,7 +346,7 @@ function App() {
             <h2 className="text-4xl font-black uppercase tracking-tight text-white">{activeTab.replace(/([A-Z])/g, ' $1').trim()} Intelligence</h2>
             <p className="text-zinc-500 font-medium mt-1 uppercase text-[10px] tracking-[0.3em]">System Status <span className="text-lime-400 ml-2">● Online</span></p>
         </header>
-        
+
         {/* --- SECURE DYNAMIC MODULE RENDERING --- */}
         {activeTab === 'home' && canAccess('home') && <SystemOverview members={members} finance={finance} equipment={equipment} inventory={inventory} leads={leads} staff={staff} aiInsight={aiFinanceInsight} />}
         {activeTab === 'finance' && canAccess('finance') && <FinanceTracker finance={finance} aiInsight={aiFinanceInsight} />}
