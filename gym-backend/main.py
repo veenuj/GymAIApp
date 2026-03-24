@@ -28,10 +28,12 @@ load_dotenv()
 # 2. Initialize FastAPI App
 app = FastAPI()
 
+# --- THE CORS VIP LIST ---
 origins = [
-    "http://localhost:5173",                 # Your local React server
-    "https://gymproerp.netlify.app/",    # REPLACE THIS with your actual live Netlify URL!
+    "http://localhost:5173",             # Your local Mac React server
+    "https://gymproerp.netlify.app",     # Netlify URL (Strictly NO trailing slash!)
 ]
+
 # 3. Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -113,6 +115,7 @@ class DB_Equipment(Base):
     usage_hours = Column(Integer)
     limit = Column(Integer)
     status = Column(String)
+
 class DB_Transformation(Base):
     __tablename__ = "transformations"
     id = Column(Integer, primary_key=True, index=True)
@@ -121,6 +124,7 @@ class DB_Transformation(Base):
     weight = Column(Float)
     fat = Column(Float)
     muscle = Column(Float)
+
 class DB_Staff(Base):
     __tablename__ = "staff"
     id = Column(Integer, primary_key=True, index=True)
@@ -128,6 +132,7 @@ class DB_Staff(Base):
     role = Column(String)
     base_salary = Column(Float)
     pt_commissions = Column(Float, default=0.0)
+
 # Create tables in the SQLite database
 Base.metadata.create_all(bind=engine)
 
@@ -192,6 +197,7 @@ class StaffCreate(BaseModel):
 class ExpenseCreate(BaseModel):
     category: str
     amount: float
+
 # ==========================================
 # 8. API ROUTES
 # ==========================================
@@ -230,7 +236,6 @@ def delete_member(member_id: int, db: Session = Depends(get_db)):
         db.commit()
     return {"message": "Member removed from SQL registry"}
 
-# Create a tiny schema for the incoming request
 class AttendanceLog(BaseModel):
     weight: Union[str, float, None] = None
 
@@ -238,26 +243,20 @@ class AttendanceLog(BaseModel):
 def mark_attendance(member_id: int, log: AttendanceLog, db: Session = Depends(get_db)):
     member = db.query(DB_Member).filter(DB_Member.id == member_id).first()
     if member:
-        # 1. Mark them as present
         member.is_present_today = True
         member.last_seen_days = 0
         
-        # 2. If weight was entered, update their master profile
         if log.weight:
             member.weight = str(log.weight)
-            
-            # 3. Save to Transformation History for the Growth Vision Graph!
             from datetime import datetime
             current_month = datetime.now().strftime("%b")
             
-            # Simplified mock of fat/muscle change for demonstration based on weight loss/gain
-            # In a real scenario, you'd want an InBody scanner API, but this makes the chart work!
             new_transformation = DB_Transformation(
                 member_name=member.name,
                 month=current_month,
                 weight=float(log.weight),
-                fat=20.0, # Placeholder until real body fat % is inputted
-                muscle=35.0 # Placeholder
+                fat=20.0, 
+                muscle=35.0 
             )
             db.add(new_transformation)
             
@@ -326,11 +325,6 @@ def get_inventory(db: Session = Depends(get_db)): return {"inventory": db.query(
 @app.get("/api/equipment")
 def get_equipment(db: Session = Depends(get_db)): return {"equipment": db.query(DB_Equipment).all()}
 
-@app.get("/api/analytics/{member_name}")
-def get_analytics(member_name: str):
-    transformation_db = {"Rahul Sharma": [{"month": "Jan", "weight": 95, "fat": 28, "muscle": 32}, {"month": "Jun", "weight": 83, "fat": 18, "muscle": 37}]}
-    return {"progress": transformation_db.get(member_name, transformation_db["Rahul Sharma"])}
-
 @app.post("/api/generate-diet")
 async def generate_diet(request: DietRequest):
     try:
@@ -387,7 +381,6 @@ def update_inventory_stock(item_id: int, action: str, db: Session = Depends(get_
         item.stock += 1
     elif action == "sell" and item.stock > 0:
         item.stock -= 1
-        # Automatically logs the sale to your Finance Tracker!
         from datetime import datetime
         new_txn = DB_Transaction(type="revenue", category=f"Sale: {item.name}", amount=item.price)
         db.add(new_txn)
@@ -397,10 +390,7 @@ def update_inventory_stock(item_id: int, action: str, db: Session = Depends(get_
 
 @app.get("/api/analytics/{member_name}")
 def get_analytics(member_name: str, db: Session = Depends(get_db)):
-    # Fetch real SQL rows matching the exact member name
     records = db.query(DB_Transformation).filter(DB_Transformation.member_name == member_name).all()
-    
-    # Convert SQL rows to JSON array for Recharts
     progress_data = [
         {"month": r.month, "weight": r.weight, "fat": r.fat, "muscle": r.muscle} 
         for r in records
@@ -427,8 +417,6 @@ def log_equipment_usage(item_id: int, hours: int = 50, db: Session = Depends(get
     if not machine: raise HTTPException(status_code=404, detail="Machine not found")
     
     machine.usage_hours += hours
-    
-    # Auto-calculate status based on telemetry
     percent = (machine.usage_hours / machine.limit) * 100
     if percent >= 90:
         machine.status = "Needs Service"
@@ -445,11 +433,9 @@ def reset_equipment_service(item_id: int, db: Session = Depends(get_db)):
     machine = db.query(DB_Equipment).filter(DB_Equipment.id == item_id).first()
     if not machine: raise HTTPException(status_code=404, detail="Machine not found")
     
-    # Maintenance completed, reset telemetry
     machine.usage_hours = 0
     machine.status = "Optimal"
     
-    # Optional: Log the maintenance cost to Finance Tracker!
     new_expense = DB_Transaction(type="expense", category=f"Service: {machine.name}", amount=2500.0)
     db.add(new_expense)
     
@@ -464,7 +450,6 @@ def get_staff(db: Session = Depends(get_db)):
 
 @app.post("/api/staff")
 def add_staff(staff: StaffCreate, db: Session = Depends(get_db)):
-    # Create tables if they don't exist yet (safety catch for new models)
     Base.metadata.create_all(bind=engine) 
     
     new_employee = DB_Staff(
@@ -487,10 +472,8 @@ def execute_payroll(db: Session = Depends(get_db)):
     for emp in staff_members:
         payout = emp.base_salary + emp.pt_commissions
         total_payout += payout
-        # Reset commissions for the new month
         emp.pt_commissions = 0.0
 
-    # Log this massive deduction in the Finance Database!
     from datetime import datetime
     month_name = datetime.now().strftime("%B %Y")
     new_expense = DB_Transaction(
@@ -507,7 +490,6 @@ def execute_payroll(db: Session = Depends(get_db)):
 
 @app.post("/api/expense")
 def add_operational_expense(expense: ExpenseCreate, db: Session = Depends(get_db)):
-    # Log it directly into the Finance Transactions table as an expense
     new_expense = DB_Transaction(
         type="expense",
         category=expense.category,
@@ -522,10 +504,7 @@ def renew_member(member_id: int, db: Session = Depends(get_db)):
     member = db.query(DB_Member).filter(DB_Member.id == member_id).first()
     if not member: raise HTTPException(status_code=404)
 
-    # Add 30 days to expiry
     member.sub_expiry = (datetime.now() + timedelta(days=30)).strftime("%d %b %Y")
-    
-    # Auto-charge the finance ledger based on their plan amount!
     payment = float(member.amount_paid) if member.amount_paid else 3500.0
     new_txn = DB_Transaction(type="revenue", category=f"Renewal: {member.name}", amount=payment)
     
@@ -535,4 +514,6 @@ def renew_member(member_id: int, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8005)
+    # Render assigns a dynamic PORT, so we pull it from the environment safely!
+    port = int(os.environ.get("PORT", 8005))
+    uvicorn.run(app, host="0.0.0.0", port=port)
