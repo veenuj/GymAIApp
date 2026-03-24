@@ -28,12 +28,16 @@ load_dotenv()
 # 2. Initialize FastAPI App
 app = FastAPI()
 
+origins = [
+    "http://localhost:5173",                 # Your local React server
+    "https://gymproerp.netlify.app/",    # REPLACE THIS with your actual live Netlify URL!
+]
 # 3. Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["*"],  # Allows GET, POST, DELETE, etc.
     allow_headers=["*"],
 )
 
